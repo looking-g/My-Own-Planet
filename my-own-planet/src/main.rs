@@ -1,4 +1,9 @@
 use bevy::prelude::*;
+use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
+
+mod object;
+use object::displace_mesh_verts;
+
 
 fn main() {
     App::new()
@@ -7,12 +12,21 @@ fn main() {
         .run();
 }
 
+#[derive(Resource)]
+struct RandomRes(ChaCha8Rng);
+
+
+#[derive(Component)]
+struct Planet;
 
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let seeded_rng = ChaCha8Rng::seed_from_u64(94757448641217);
+    commands.insert_resource(RandomRes(seeded_rng));
+
     // camera
     commands.spawn((
         Camera3d::default(),
@@ -28,11 +42,15 @@ fn setup(
         Transform::from_xyz(4.0, 8.0, 4.0),
     ));
 
-    // circal (to be the planet)
+    let mut planet = Mesh::from(Sphere::new(1.0));
+    displace_mesh_verts(&mut planet);
+
+    // The user's planet
     commands.spawn((
-        Mesh3d(meshes.add(Sphere::new(1.0))),
-        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-        Transform::from_xyz(0.0, 0.5, 0.0),
+        Mesh3d(meshes.add(planet)),
+        MeshMaterial3d(materials.add(Color::srgb_u8(255, 255, 255))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Planet, 
     ));
 
 
