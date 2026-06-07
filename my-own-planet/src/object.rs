@@ -1,11 +1,10 @@
-//! Functions used when adding mechs to the planet
+//! Systems used to edit meshs
 
 use bevy::math::Vec3;
 use bevy::prelude::Mesh;
 use bevy::mesh::{VertexAttributeValues, Indices};
 use bevy::ecs::change_detection::ResMut;
 
-use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng}; 
 use rand::TryRng;
 
 use crate::RandomRes;
@@ -41,7 +40,6 @@ fn u32_frac(x: u32) -> f32{
 }
 
 // high level mesh editing
-//use 
 use bevy::math::curve::EaseFunction;
 use bevy::prelude::Curve;
 
@@ -94,6 +92,7 @@ impl DisplaceEdit{
 
 pub fn displace_mesh_verts(
     mesh: &mut Mesh,
+    edits: &Vec<DisplaceEdit>,
 ) {
 
     let Some(VertexAttributeValues::Float32x3(poses)) =
@@ -101,23 +100,13 @@ pub fn displace_mesh_verts(
         return ();
     };
 
-    // vertex displacement
-    let edits = Vec::from([
-        DisplaceEdit::Circle{
-            pos: Vec3::Z,
-            r: 0.5,
-            mode: FormMode::Sub,
-        }
-    ]);
-
-
     for edit in edits.iter() {
         for pos in poses.iter_mut() {
             let vec3pos: Vec3 = Vec3::from_array(*pos);
             let pos_direction = vec3pos.normalize();
             let pos_dist = vec3pos.length();
 
-            [pos[0], pos[1], pos[2]] = Vec3::to_array(&(
+            *pos = Vec3::to_array(&(
                 pos_direction * (pos_dist + edit.get_displace(vec3pos))
             ));
         }
