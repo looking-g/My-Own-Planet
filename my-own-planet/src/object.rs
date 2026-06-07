@@ -10,6 +10,8 @@ use rand::TryRng;
 
 use crate::RandomRes;
 
+// random point
+
 /// gets a random surface point on a the input circle
 pub fn get_surface_point(
     circle_r: f32,
@@ -38,24 +40,96 @@ fn u32_frac(x: u32) -> f32{
     (fx - half_max) / half_max
 }
 
+// high level mesh editing
+//use 
+use bevy::math::curve::EaseFunction;
+use bevy::prelude::Curve;
+
+#[derive(Clone, Copy)]
+pub enum FormMode{
+    Add,
+    Sub,
+}
+
+/// used for storing the vertex displacement edit
+pub enum DisplaceEdit{
+    Circle{
+        pos: Vec3,
+        r: f32,
+        mode: FormMode,
+    },
+    // use for mountins
+    // Cone{ TODO }
+}
+
+impl DisplaceEdit{
+    /// vertex's distence from the center should be `current dist + output` 
+    pub fn get_displace(&self, point: Vec3) -> f32 {
+        let mode: FormMode;
+        let new_depth = match self {
+            DisplaceEdit::Circle{pos, r, mode: m} => {
+                let sq_dist = point.distance_squared(*pos);
+                let max_dist = r * r;
+                // 0 = point is out side the affected aria
+                // 1 = point is at the center of the effected aria
+                let norm_dist = (-sq_dist/max_dist) + 1.0;
+                let norm_dist = norm_dist.clamp(0.0, 1.0);
+
+                mode = *m;
+                EaseFunction::CircularIn.sample(norm_dist).unwrap_or(0.0) * r
+            },
+
+        };
+
+        match mode{
+            FormMode::Add => new_depth,
+            FormMode::Sub => -new_depth,
+        }
+
+    }
+
+}
+
+// low level mesh editing
+
 pub fn displace_mesh_verts(
     mesh: &mut Mesh,
 ) {
-    let num_vertices;
+
+    let Some(VertexAttributeValues::Float32x3(poses)) =
+        mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION) else {
+        return ();
+    };
 
     // vertex displacement
-    if let Some(VertexAttributeValues::Float32x3(poses)) =
-        mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
-    {
-        num_vertices = poses.len();
-        for pos in poses.iter_mut() {
-            if pos[1] > 0.0 {
-                pos[1] = 0.0;
-            }
+    let edits = Vec::from([
+        DisplaceEdit::Circle{
+            pos: Vec3::Z,
+            r: 0.5,
+            mode: FormMode::Sub,
         }
-    } else {
-        return ();
+    ]);
+
+
+    for edit in edits.iter() {
+        for pos in poses.iter_mut() {
+            let vec3pos: Vec3 = Vec3::from_array(*pos);
+            let pos_direction = vec3pos.normalize();
+            let pos_dist = vec3pos.length();
+
+            [pos[0], pos[1], pos[2]] = Vec3::to_array(&(
+                pos_direction * (pos_dist + edit.get_displace(vec3pos))
+            ));
+        }
     }
+
+    // recalculating vertex normals 
+    
+    vert_norm_update(mesh);
+}
+
+/// updates the vertex normals of a mesh
+fn vert_norm_update(mesh: &mut Mesh) {
 
     // recalculating vertex normals 
     
@@ -63,6 +137,8 @@ pub fn displace_mesh_verts(
         mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
         return ();
     };
+
+    let num_vertices = poses.len();
 
     let Some(Indices::U32(indices)) =
         mesh.indices() else {
@@ -115,7 +191,6 @@ pub fn displace_mesh_verts(
     {
         *mesh_norms = normals;
     }
-
 
 }
 
