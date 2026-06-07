@@ -42,7 +42,7 @@ fn setup(
         Transform::from_xyz(4.0, 8.0, 4.0),
     ));
 
-    let mut planet = Mesh::from(Sphere::new(1.0));
+    let mut planet = Sphere::new(1.0).mesh().ico(32).unwrap();
     displace_mesh_verts(&mut planet);
 
     // The user's planet
