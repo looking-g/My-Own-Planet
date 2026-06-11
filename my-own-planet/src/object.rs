@@ -14,21 +14,20 @@ use crate::RandomRes;
 /// gets a random surface point on a the input circle
 pub fn get_surface_point(
     circle_r: f32,
-    circle_pos: Vec3,
-    mut rand: ResMut<RandomRes>,
+    rand: &mut ResMut<RandomRes>,
 ) -> Vec3{
     // gets a random direction
     let mut rand_dir = [0.0_f32; 3];
     for i in 0..3{ // gets a random number for each direction
         rand_dir[i] =  u32_frac(
-            rand.0
+            (*rand).0
                 .try_next_u32()
                 .unwrap()
         )
     }
-    let rand_dir = Vec3::from_array(rand_dir).normalize() * circle_r;
+    let rand_point = Vec3::from_array(rand_dir).normalize() * circle_r;
 
-    rand_dir + circle_pos
+    rand_point
 }
 
 /// converts a 0.0-MAX u32 value to a -1.0-1.0 f32 value
