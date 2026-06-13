@@ -9,12 +9,15 @@ use bevy::prelude::*;
 pub fn input_plugin(app: &mut App) {
     app
         .insert_resource(NumberOfCraters(0))
+        .insert_resource(NumberOfMountains(0))
         .insert_resource(OldMousePos::default())
         .insert_resource(Buttons::default())
         .add_systems(Startup, setup_ui)
         .add_systems(Update, (rotate_planet, react_to_buttons, update_text))
         .add_observer(crater_generater)
         .add_observer(crater_remover)
+        .add_observer(mountain_generater)
+        .add_observer(mountain_remover)
         .add_observer(update_planet_visual)
     ;
 }
@@ -35,7 +38,7 @@ fn crater_generater(
     mut planet: Single<&mut MeshEdits, With<Planet>>, 
     mut rand: ResMut<RandomRes>,
     planet_info: Res<PlanetRes>,
-    mut crater_count: ResMut<NumberOfCraters>,
+    mut count: ResMut<NumberOfCraters>,
     mut commands: Commands,
 ) {
     let crater_radius = 0.3;
@@ -48,29 +51,84 @@ fn crater_generater(
             mode: FormMode::Sub,
         }
     );
-    crater_count.0 += 1;
+    count.0 += 1;
 
     commands.trigger(UpdateVisual)
 }
 
 fn crater_remover(
     _remover: On<SubCrater>,
-    mut num_crater: ResMut<NumberOfCraters>,
+    mut count: ResMut<NumberOfCraters>,
     mut planet: Single<&mut MeshEdits, With<Planet>>, 
     mut commands: Commands,
 ) {
-    if num_crater.0 > 0 {
+    if count.0 > 0 {
         let ref mut edits = *planet;
         for (i, edit) in edits.0.iter().enumerate().rev(){
             if matches!(edit, DisplaceEdit::Circle{..}){
                 (*edits).0.remove(i);
-                num_crater.0 -= 1;
+                count.0 -= 1;
                 commands.trigger(UpdateVisual);
                 return ();
             }
         }
     }
 }
+
+#[derive(Event)]
+struct AddMountain;
+#[derive(Event)]
+struct SubMountain;
+
+#[derive(Resource)]
+struct NumberOfMountains(u32);
+#[derive(Component)]
+struct NumMountainDisplay;
+
+
+/// Adds a new mountain to a random spot
+fn mountain_generater(
+    _create: On<AddMountain>,
+    mut planet: Single<&mut MeshEdits, With<Planet>>, 
+    mut rand: ResMut<RandomRes>,
+    planet_info: Res<PlanetRes>,
+    mut count: ResMut<NumberOfMountains>,
+    mut commands: Commands,
+) {
+    let crater_radius = 0.6;
+    let ref mut edits = *planet;
+
+    edits.0.push(
+        DisplaceEdit::HalfCircle{
+            pos: get_surface_point(planet_info.size, &mut rand),
+            r: crater_radius,
+            mode: FormMode::Add,
+        }
+    );
+    count.0 += 1;
+
+    commands.trigger(UpdateVisual)
+}
+
+fn mountain_remover(
+    _remover: On<SubMountain>,
+    mut count: ResMut<NumberOfMountains>,
+    mut planet: Single<&mut MeshEdits, With<Planet>>, 
+    mut commands: Commands,
+) {
+    if count.0 > 0 {
+        let ref mut edits = *planet;
+        for (i, edit) in edits.0.iter().enumerate().rev(){
+            if matches!(edit, DisplaceEdit::HalfCircle{..}){
+                (*edits).0.remove(i);
+                count.0 -= 1;
+                commands.trigger(UpdateVisual);
+                return ();
+            }
+        }
+    }
+}
+
 
 #[derive(Event)]
 struct UpdateVisual;
@@ -127,7 +185,7 @@ fn rotate_planet(
 struct OldMousePos(Option<Vec2>);
 
 
-// UI stuff
+// UI
 
 const BUTTON_NORMAL: Color = Color::srgb(0.3, 0.3, 0.3);
 const BUTTON_HOVER: Color = Color::srgb(0.4, 0.4, 0.4);
@@ -137,6 +195,8 @@ const BUTTON_PRESS: Color = Color::srgb(0.6, 0.6, 0.6);
 struct Buttons{
     add_crater: Entity,
     sub_crater: Entity,
+    add_mountains: Entity,
+    sub_mountains: Entity,
 }
 
 impl Default for Buttons {
@@ -144,90 +204,12 @@ impl Default for Buttons {
         Self{
             add_crater: Entity::PLACEHOLDER,
             sub_crater: Entity::PLACEHOLDER,
+            add_mountains: Entity::PLACEHOLDER, 
+            sub_mountains: Entity::PLACEHOLDER, 
         }
     }
 }
 
-fn setup_ui(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut buttons: ResMut<Buttons>,
-) {
-
-
-    // font from 
-    // https://www.jetbrains.com/lp/mono/
-    let font = asset_server.load("fonts/JetBrainsMono-Regular.ttf");
-
-    commands
-        .spawn((Node {
-            width: percent(46),
-            height: percent(96),
-            justify_self: JustifySelf::End,
-            justify_content: JustifyContent::Start,
-            margin: UiRect {
-                right: percent(1),
-                top: percent(1),
-                ..default()
-            },
-            border_radius: BorderRadius::all(px(20)),
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 0.35).into()),
-        // static ui parts
-        children![
-            make_text_ui("Craters:", font.clone(),
-                Node{
-                    position_type: PositionType::Absolute,
-                    left: percent(4),
-                    top: percent(3),
-                    ..default() 
-                },
-            NoTrack),
-            make_text_ui("999", font.clone(),
-                Node{
-                    position_type: PositionType::Absolute,
-                    left: percent(4),
-                    top: percent(6),
-                    ..default() 
-                },
-            NumCraterDisplay),
-        ]
-    // buttons
-    )).with_children(|parent| {
-    {
-        buttons.add_crater = parent.spawn(
-            make_button_ui("+1", font.clone(),
-                Node{
-                    position_type: PositionType::Absolute,
-                    left: percent(66),
-                    top: percent(3),
-                    width: percent(8),
-                    height: percent(5),
-                    border_radius: BorderRadius::all(px(10)),
-                    ..default() 
-                }
-            )
-
-        ).id();
-        buttons.sub_crater = parent.spawn(
-            make_button_ui("-1", font.clone(),
-                Node{
-                    position_type: PositionType::Absolute,
-                    left: percent(33),
-                    top: percent(3),
-                    width: percent(8),
-                    height: percent(5),
-                    border_radius: BorderRadius::all(px(10)),
-                    ..default() 
-                }
-            )
-
-        ).id();
-    }
-    });
-
-}
 
 // for all untracked text elements
 
@@ -301,6 +283,8 @@ fn react_to_buttons(
                 match entity{
                     x if buttons.add_crater == x => commands.trigger(AddCrater),
                     x if buttons.sub_crater == x => commands.trigger(SubCrater),
+                    x if buttons.add_mountains == x => commands.trigger(AddMountain),
+                    x if buttons.sub_mountains == x => commands.trigger(SubMountain),
                     _ => continue,
                 }
             }
@@ -311,12 +295,130 @@ fn react_to_buttons(
 
 
 fn update_text(
-    mut crater_text: Single<&mut Text, With<NumCraterDisplay>>,
+    mut texts: Query<(&mut Text, Has<NumCraterDisplay>, Has<NumMountainDisplay>)>,
     num_crater: Res<NumberOfCraters>,
+    num_mountain: Res<NumberOfMountains>,
 ) {
-    crater_text.0 = format!("{}", num_crater.0);
+    for (mut text, crater, mountain) in texts.iter_mut() {
+        if crater { text.0 = format!("{}", num_crater.0); }
+        if mountain { text.0 = format!("{}", num_mountain.0); }
+    }
 }
 
+
+fn setup_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    buttons: ResMut<Buttons>,
+) {
+
+
+    // font from 
+    // https://www.jetbrains.com/lp/mono/
+    let font = asset_server.load("fonts/JetBrainsMono-Regular.ttf");
+
+    let ui_aria = commands
+        .spawn((Node {
+            width: percent(46),
+            height: percent(96),
+            justify_self: JustifySelf::End,
+            justify_content: JustifyContent::Start,
+            margin: UiRect {
+                right: percent(1),
+                top: percent(1),
+                ..default()
+            },
+            border_radius: BorderRadius::all(px(20)),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 0.35).into()),
+        // text
+        children![
+            // craters
+            make_text_ui("Craters:", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(3),
+                    ..default() 
+                },
+            NoTrack),
+            make_text_ui("999", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(7),
+                    ..default() 
+                },
+            NumCraterDisplay),
+            // mountains
+            make_text_ui("Mountains:", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(14),
+                    ..default() 
+                },
+            NoTrack),
+            make_text_ui("999", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(18),
+                    ..default() 
+                },
+            NumMountainDisplay),
+        ]
+    // buttons
+    )).id();
+
+    let buttons = buttons.into_inner();
+
+    spwn_button_system(&mut buttons.add_crater, &mut buttons.sub_crater, percent(3), font.clone(), ui_aria, &mut commands);
+    spwn_button_system(&mut buttons.add_mountains, &mut buttons.sub_mountains, percent(14), font.clone(), ui_aria, &mut commands);
+}
+
+
+fn spwn_button_system(
+    add_tracker: &mut Entity, 
+    sub_tracker: &mut Entity, 
+    val_from_top: Val, 
+    font: Handle<Font>,
+    parent: Entity,
+    commands: &mut Commands,
+) {
+    *add_tracker = commands.spawn((
+        make_button_ui("+1", font.clone(),
+            Node{
+                position_type: PositionType::Absolute,
+                left: percent(90),
+                top: val_from_top,
+                width: percent(8),
+                height: percent(5),
+                border_radius: BorderRadius::all(px(10)),
+                ..default() 
+            }
+        ),
+        ChildOf(parent),
+    )).id();
+
+
+    *sub_tracker = commands.spawn((
+        make_button_ui("-1", font.clone(),
+            Node{
+                position_type: PositionType::Absolute,
+                left: percent(50),
+                top: val_from_top,
+                width: percent(8),
+                height: percent(5),
+                border_radius: BorderRadius::all(px(10)),
+                ..default() 
+            }
+        ),
+        ChildOf(parent),
+    )).id();
+
+}
 
 
 
