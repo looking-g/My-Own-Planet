@@ -55,8 +55,11 @@ pub enum DisplaceEdit{
         r: f32,
         mode: FormMode,
     },
-    // use for mountins
-    // Cone{ TODO }
+    HalfCircle{
+        pos: Vec3,
+        r: f32,
+        mode: FormMode,
+    },
 }
 
 impl DisplaceEdit{
@@ -74,6 +77,17 @@ impl DisplaceEdit{
 
                 mode = *m;
                 EaseFunction::CircularIn.sample(norm_dist).unwrap_or(0.0) * r
+            },
+            DisplaceEdit::HalfCircle{pos, r, mode: m} => {
+                let sq_dist = point.distance_squared(*pos);
+                let max_dist = r * r;
+                // 0 = point is out side the affected aria
+                // 1 = point is at the center of the effected aria
+                let norm_dist = (-sq_dist/max_dist) + 1.0;
+                let norm_dist = norm_dist.clamp(0.0, 1.0);
+
+                mode = *m;
+                EaseFunction::CircularIn.sample(norm_dist).unwrap_or(0.0) / 2.0 * r
             },
 
         };
