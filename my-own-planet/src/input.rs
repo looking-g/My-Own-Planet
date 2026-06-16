@@ -2,18 +2,27 @@
 
 use crate::{get_surface_point, DisplaceEdit, FormMode, MeshEdits, RandomRes, redo_planet_mesh, Planet, PlanetRes};
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    picking::hover::Hovered,
+    ui_widgets::{
+        observe, slider_self_update, Slider, SliderRange, SliderThumb,
+        SliderValue, TrackClick, SliderPlugin,
+    },
+};
 
 
 /// The plugin for all input related systems
 pub fn input_plugin(app: &mut App) {
     app
+        .add_plugins(SliderPlugin)
         .insert_resource(NumberOfCraters(0))
         .insert_resource(NumberOfMountains(0))
         .insert_resource(OldMousePos::default())
         .insert_resource(Buttons::default())
+        .insert_resource(Sliders::default())
         .add_systems(Startup, setup_ui)
-        .add_systems(Update, (rotate_planet, react_to_buttons, update_text))
+        .add_systems(Update, (rotate_planet, react_to_buttons, update_text, update_slider_visuals))
         .add_observer(crater_generater)
         .add_observer(crater_remover)
         .add_observer(mountain_generater)
@@ -210,6 +219,18 @@ impl Default for Buttons {
     }
 }
 
+#[derive(Resource)]
+struct Sliders{
+    test: Entity,
+}
+
+impl Default for Sliders {
+    fn default() -> Self {
+        Self{
+            test: Entity::PLACEHOLDER,
+        }
+    }
+}
 
 // for all untracked text elements
 
@@ -310,6 +331,7 @@ fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     buttons: ResMut<Buttons>,
+    sliders: ResMut<Sliders>,
 ) {
 
 
@@ -368,6 +390,7 @@ fn setup_ui(
                     ..default() 
                 },
             NumMountainDisplay),
+
         ]
     // buttons
     )).id();
@@ -376,6 +399,27 @@ fn setup_ui(
 
     spwn_button_system(&mut buttons.add_crater, &mut buttons.sub_crater, percent(3), font.clone(), ui_aria, &mut commands);
     spwn_button_system(&mut buttons.add_mountains, &mut buttons.sub_mountains, percent(14), font.clone(), ui_aria, &mut commands);
+
+    let sliders = sliders.into_inner();
+
+    make_slider_ui(
+        Node{
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Stretch,
+            position_type: PositionType::Absolute,
+            width: percent(25),
+            height: px(12),
+            left: percent(4),
+            top: percent(18),
+            ..default() 
+        },
+        &mut sliders.test,
+        &mut commands,
+        (0.0, 100.0),
+        25.0, 
+    );
 }
 
 
@@ -420,6 +464,80 @@ fn spwn_button_system(
 
 }
 
+#[derive(Component)]
+struct ThumbParent;
+
+// based of the code from
+// https://bevy.org/examples/ui-user-interface/vertical-slider/
+fn make_slider_ui(
+    node: Node, // used for defining pos and size
+    tracker: &mut Entity, // this value is set to the slider's id
+    commands: &mut Commands,
+    range: (f32, f32), // start, end
+    init_val: f32, // starting value
+) {
+    // parent node
+    *tracker = commands.spawn((
+        node,
+        Hovered::default(),
+        Slider {
+            track_click: TrackClick::Snap,
+        },
+        SliderValue(init_val),
+        SliderRange::new(range.0, range.1),
+        observe(slider_self_update),
+    )).id();
+    // black bar
+    commands.spawn((
+        ChildOf(*tracker),
+        Node {
+            height: px(6),
+            border_radius: BorderRadius::all(px(3)),
+            ..default()
+        },
+        BackgroundColor(BUTTON_HOVER),
+    ));
+    // sliding thumb aka. nub
+    commands.spawn((
+        ChildOf(*tracker),
+        ThumbParent,
+        Node { // pos node
+            display: Display::Flex,
+            position_type: PositionType::Absolute,
+            left: px(0),
+            right: px(0),
+            top: px(0),
+            bottom: px(0),
+            ..default()
+        },
+        children![(
+            SliderThumb,
+            Node { // looks node
+                display: Display::Flex,
+                width: px(12),
+                height: px(12),
+                right: px(6),
+                position_type: PositionType::Relative,
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+            BackgroundColor(BUTTON_PRESS),
+        )],
+    ));
+}
+
+fn update_slider_visuals(
+    sliders: Query<(&Children, &SliderValue, &SliderRange), Changed<SliderValue>>,
+    mut slider_thumbs: Query<&mut Node, With<ThumbParent>>,
+) {
+    for (children, slider_value, slider_range) in sliders.iter() {
+        for child in children.iter() {
+            if let Ok(mut child_node) = slider_thumbs.get_mut(child) {
+                child_node.left = percent((slider_value.0 / slider_range.end()) * 100.0)
+            }
+        }
+    }
+}
 
 
 
