@@ -11,9 +11,8 @@ use crate::RandomRes;
 
 // random point
 
-/// gets a random surface point on a the input circle
+/// gets a random surface point on a unit circle located at (0, 0, 0)
 pub fn get_surface_point(
-    circle_r: f32,
     rand: &mut ResMut<RandomRes>,
 ) -> Vec3{
     // gets a random direction
@@ -25,9 +24,7 @@ pub fn get_surface_point(
                 .unwrap()
         )
     }
-    let rand_point = Vec3::from_array(rand_dir).normalize() * circle_r;
-
-    rand_point
+    Vec3::from_array(rand_dir).normalize()
 }
 
 /// converts a 0.0-MAX u32 value to a -1.0-1.0 f32 value
@@ -64,11 +61,12 @@ pub enum DisplaceEdit{
 
 impl DisplaceEdit{
     /// vertex's distence from the center should be `current dist + output` 
-    pub fn get_displace(&self, point: Vec3) -> f32 {
+    pub fn get_displace(&self, point: Vec3, planet_size: f32) -> f32 {
         let mode: FormMode;
         let new_depth = match self {
             DisplaceEdit::Circle{pos, r, mode: m} => {
-                let sq_dist = point.distance_squared(*pos);
+                let pos = planet_size * *pos;
+                let sq_dist = point.distance_squared(pos);
                 let max_dist = r * r;
                 // 0 = point is out side the affected aria
                 // 1 = point is at the center of the effected aria
@@ -79,7 +77,8 @@ impl DisplaceEdit{
                 EaseFunction::CircularIn.sample(norm_dist).unwrap_or(0.0) * r
             },
             DisplaceEdit::HalfCircle{pos, r, mode: m} => {
-                let sq_dist = point.distance_squared(*pos);
+                let pos = planet_size * *pos;
+                let sq_dist = point.distance_squared(pos);
                 let max_dist = r * r;
                 // 0 = point is out side the affected aria
                 // 1 = point is at the center of the effected aria
@@ -106,6 +105,7 @@ impl DisplaceEdit{
 pub fn displace_mesh_verts(
     mesh: &mut Mesh,
     edits: &Vec<DisplaceEdit>,
+    planet_size: f32,
 ) {
 
     let Some(VertexAttributeValues::Float32x3(poses)) =
@@ -120,7 +120,7 @@ pub fn displace_mesh_verts(
             let pos_dist = vec3pos.length();
 
             *pos = Vec3::to_array(&(
-                pos_direction * (pos_dist + edit.get_displace(vec3pos))
+                pos_direction * (pos_dist + edit.get_displace(vec3pos, planet_size))
             ));
         }
     }

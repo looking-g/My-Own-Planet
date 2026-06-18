@@ -22,7 +22,7 @@ pub fn input_plugin(app: &mut App) {
         .insert_resource(Buttons::default())
         .insert_resource(Sliders::default())
         .add_systems(Startup, setup_ui)
-        .add_systems(Update, (rotate_planet, react_to_buttons, update_text, update_slider_visuals))
+        .add_systems(Update, (rotate_planet, react_to_buttons, update_text, update_slider_visuals, update_planet_color, update_planet_size, update_ico_divs))
         .add_observer(crater_generater)
         .add_observer(crater_remover)
         .add_observer(mountain_generater)
@@ -46,7 +46,6 @@ fn crater_generater(
     _create: On<AddCrater>,
     mut planet: Single<&mut MeshEdits, With<Planet>>, 
     mut rand: ResMut<RandomRes>,
-    planet_info: Res<PlanetRes>,
     mut count: ResMut<NumberOfCraters>,
     mut commands: Commands,
 ) {
@@ -55,7 +54,7 @@ fn crater_generater(
 
     edits.0.push(
         DisplaceEdit::Circle{
-            pos: get_surface_point(planet_info.size, &mut rand),
+            pos: get_surface_point(&mut rand),
             r: crater_radius,
             mode: FormMode::Sub,
         }
@@ -100,7 +99,6 @@ fn mountain_generater(
     _create: On<AddMountain>,
     mut planet: Single<&mut MeshEdits, With<Planet>>, 
     mut rand: ResMut<RandomRes>,
-    planet_info: Res<PlanetRes>,
     mut count: ResMut<NumberOfMountains>,
     mut commands: Commands,
 ) {
@@ -109,7 +107,7 @@ fn mountain_generater(
 
     edits.0.push(
         DisplaceEdit::HalfCircle{
-            pos: get_surface_point(planet_info.size, &mut rand),
+            pos: get_surface_point(&mut rand),
             r: crater_radius,
             mode: FormMode::Add,
         }
@@ -138,7 +136,6 @@ fn mountain_remover(
     }
 }
 
-
 #[derive(Event)]
 struct UpdateVisual;
 
@@ -155,6 +152,54 @@ fn update_planet_visual(
         &mut meshes,
         planet_info,
     );
+}
+
+use bevy::pbr::MeshMaterial3d;
+fn update_planet_color(
+    mut planet_texture: Single<&mut MeshMaterial3d<StandardMaterial>>, 
+    sliders_query: Query<&SliderValue>,
+    mut planet_vals: ResMut<PlanetRes>,
+    slider_res: Res<Sliders>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if let Color::Hsla(Hsla{mut hue, saturation, lightness, alpha}) = planet_vals.color {
+        let Ok(hue_query) = sliders_query.get(slider_res.hue) else { return (); };
+        if hue_query.0 != hue {
+            hue = hue_query.0;
+            planet_vals.color = Color::hsla(hue, saturation, lightness, alpha);
+        } else {
+            return ();
+        }
+
+        planet_texture.0 = materials.add(planet_vals.color);
+    }
+}
+
+
+fn update_planet_size(
+    sliders_query: Query<&SliderValue>,
+    mut planet_vals: ResMut<PlanetRes>,
+    slider_res: Res<Sliders>,
+    mut commands: Commands,
+) {
+    let Ok(size) = sliders_query.get(slider_res.size) else { return (); };
+    if planet_vals.size != size.0{
+        planet_vals.size = size.0;
+        commands.trigger(UpdateVisual);
+    }
+}
+
+fn update_ico_divs(
+    sliders_query: Query<&SliderValue>,
+    mut planet_vals: ResMut<PlanetRes>,
+    slider_res: Res<Sliders>,
+    mut commands: Commands,
+) {
+    let Ok(ico_divs) = sliders_query.get(slider_res.ico_div) else { return (); };
+    if planet_vals.ico_divisions != ico_divs.0.floor() as u32{
+        planet_vals.ico_divisions = ico_divs.0.floor() as u32;
+        commands.trigger(UpdateVisual);
+    }
 }
     
 const PLANET_ROT_SPEED: f32 = 0.001;
@@ -221,13 +266,17 @@ impl Default for Buttons {
 
 #[derive(Resource)]
 struct Sliders{
-    test: Entity,
+    hue: Entity,
+    size: Entity,
+    ico_div: Entity,
 }
 
 impl Default for Sliders {
     fn default() -> Self {
         Self{
-            test: Entity::PLACEHOLDER,
+            hue: Entity::PLACEHOLDER,
+            size: Entity::PLACEHOLDER,
+            ico_div: Entity::PLACEHOLDER,
         }
     }
 }
@@ -326,12 +375,54 @@ fn update_text(
     }
 }
 
+fn spawn_button_system(
+    add_tracker: &mut Entity, 
+    sub_tracker: &mut Entity, 
+    val_from_top: Val, 
+    font: Handle<Font>,
+    parent: Entity,
+    commands: &mut Commands,
+) {
+    *add_tracker = commands.spawn((
+        make_button_ui("+1", font.clone(),
+            Node{
+                position_type: PositionType::Absolute,
+                left: percent(90),
+                top: val_from_top,
+                width: percent(8),
+                height: percent(5),
+                border_radius: BorderRadius::all(px(10)),
+                ..default() 
+            }
+        ),
+        ChildOf(parent),
+    )).id();
+
+
+    *sub_tracker = commands.spawn((
+        make_button_ui("-1", font.clone(),
+            Node{
+                position_type: PositionType::Absolute,
+                left: percent(50),
+                top: val_from_top,
+                width: percent(8),
+                height: percent(5),
+                border_radius: BorderRadius::all(px(10)),
+                ..default() 
+            }
+        ),
+        ChildOf(parent),
+    )).id();
+
+}
+
 
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     buttons: ResMut<Buttons>,
     sliders: ResMut<Sliders>,
+    plant_vals: Res<PlanetRes>,
 ) {
 
 
@@ -391,78 +482,89 @@ fn setup_ui(
                 },
             NumMountainDisplay),
 
+
+            make_text_ui("Hue:", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(25),
+                    ..default() 
+                },
+            NoTrack),
+            make_text_ui("Size:", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(32),
+                    ..default() 
+                },
+            NoTrack),
+            make_text_ui("Quality: \n(icosphere subdivisions)", font.clone(),
+                Node{
+                    position_type: PositionType::Absolute,
+                    left: percent(4),
+                    top: percent(39),
+                    ..default() 
+                },
+            NoTrack),
+
         ]
     // buttons
     )).id();
 
+    // buttons
+
     let buttons = buttons.into_inner();
 
-    spwn_button_system(&mut buttons.add_crater, &mut buttons.sub_crater, percent(3), font.clone(), ui_aria, &mut commands);
-    spwn_button_system(&mut buttons.add_mountains, &mut buttons.sub_mountains, percent(14), font.clone(), ui_aria, &mut commands);
+    spawn_button_system(&mut buttons.add_crater, &mut buttons.sub_crater, percent(3), font.clone(), ui_aria, &mut commands);
+    spawn_button_system(&mut buttons.add_mountains, &mut buttons.sub_mountains, percent(14), font.clone(), ui_aria, &mut commands);
+
+    // sliders
 
     let sliders = sliders.into_inner();
 
+    if let Color::Hsla(hsla) = plant_vals.color {
+        let Hsla{hue, ..} = hsla;
+        make_slider_ui(
+            Node{
+                width: percent(45),
+                left: percent(50),
+                top: percent(25),
+                ..default() 
+            },
+            &mut sliders.hue, &mut commands,
+            (0.0, 360.0), hue, 
+            ui_aria,
+        );
+    }
+
     make_slider_ui(
         Node{
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Stretch,
-            position_type: PositionType::Absolute,
-            width: percent(25),
-            height: px(12),
-            left: percent(4),
-            top: percent(18),
+            width: percent(45),
+            left: percent(50),
+            top: percent(32),
             ..default() 
         },
-        &mut sliders.test,
-        &mut commands,
-        (0.0, 100.0),
-        25.0, 
+        &mut sliders.size, &mut commands,
+        (1.0, 3.0), plant_vals.size, 
+        ui_aria,
+    );
+
+    make_slider_ui(
+        Node{
+            width: percent(45),
+            left: percent(50),
+            top: percent(39),
+            ..default() 
+        },
+        &mut sliders.ico_div, &mut commands,
+        (1.0, 64.0), plant_vals.ico_divisions as f32, 
+        ui_aria,
     );
 }
 
 
-fn spwn_button_system(
-    add_tracker: &mut Entity, 
-    sub_tracker: &mut Entity, 
-    val_from_top: Val, 
-    font: Handle<Font>,
-    parent: Entity,
-    commands: &mut Commands,
-) {
-    *add_tracker = commands.spawn((
-        make_button_ui("+1", font.clone(),
-            Node{
-                position_type: PositionType::Absolute,
-                left: percent(90),
-                top: val_from_top,
-                width: percent(8),
-                height: percent(5),
-                border_radius: BorderRadius::all(px(10)),
-                ..default() 
-            }
-        ),
-        ChildOf(parent),
-    )).id();
 
-
-    *sub_tracker = commands.spawn((
-        make_button_ui("-1", font.clone(),
-            Node{
-                position_type: PositionType::Absolute,
-                left: percent(50),
-                top: val_from_top,
-                width: percent(8),
-                height: percent(5),
-                border_radius: BorderRadius::all(px(10)),
-                ..default() 
-            }
-        ),
-        ChildOf(parent),
-    )).id();
-
-}
 
 #[derive(Component)]
 struct ThumbParent;
@@ -470,14 +572,23 @@ struct ThumbParent;
 // based of the code from
 // https://bevy.org/examples/ui-user-interface/vertical-slider/
 fn make_slider_ui(
-    node: Node, // used for defining pos and size
+    mut node: Node, // used for defining pos and size
     tracker: &mut Entity, // this value is set to the slider's id
     commands: &mut Commands,
     range: (f32, f32), // start, end
     init_val: f32, // starting value
+    parent: Entity,
 ) {
+    node.display = Display::Flex;
+    node.flex_direction = FlexDirection::Column;
+    node.justify_content = JustifyContent::Center;
+    node.align_items = AlignItems::Stretch;
+    node.position_type = PositionType::Absolute;
+    node.height = px(SLIDER_THUMB_SIZE * 2);
+
     // parent node
     *tracker = commands.spawn((
+        ChildOf(parent),
         node,
         Hovered::default(),
         Slider {
@@ -514,9 +625,10 @@ fn make_slider_ui(
             SliderThumb,
             Node { // looks node
                 display: Display::Flex,
-                width: px(12),
-                height: px(12),
-                right: px(6),
+                width: px(SLIDER_THUMB_SIZE * 2),
+                height: px(SLIDER_THUMB_SIZE * 2),
+                min_width: px(SLIDER_THUMB_SIZE * 2),
+                right: px(SLIDER_THUMB_SIZE),
                 position_type: PositionType::Relative,
                 border_radius: BorderRadius::MAX,
                 ..default()
@@ -526,6 +638,8 @@ fn make_slider_ui(
     ));
 }
 
+const SLIDER_THUMB_SIZE: u32 = 12;
+
 fn update_slider_visuals(
     sliders: Query<(&Children, &SliderValue, &SliderRange), Changed<SliderValue>>,
     mut slider_thumbs: Query<&mut Node, With<ThumbParent>>,
@@ -533,7 +647,7 @@ fn update_slider_visuals(
     for (children, slider_value, slider_range) in sliders.iter() {
         for child in children.iter() {
             if let Ok(mut child_node) = slider_thumbs.get_mut(child) {
-                child_node.left = percent((slider_value.0 / slider_range.end()) * 100.0)
+                child_node.left = percent(slider_range.thumb_position(slider_value.0) * 100.0);
             }
         }
     }

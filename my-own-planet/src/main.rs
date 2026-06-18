@@ -46,7 +46,7 @@ impl Default for PlanetRes {
             pos: Vec3::new(-2.0, 0.0, 0.0),
             size: 2.0,
             ico_divisions: 32,
-            color: Color::srgb(1.0, 1.0, 1.0),
+            color: Color::hsla(0.0, 0.5, 0.5, 1.0),
         }
     }
 }
@@ -100,7 +100,7 @@ fn redo_planet_mesh(
 
     let mut planet = Sphere::new(planet_info.size).mesh().ico(planet_info.ico_divisions).unwrap();
 
-    displace_mesh_verts(&mut planet, &(edits.0));
+    displace_mesh_verts(&mut planet, &(edits.0), planet_info.size);
 
     planet_mesh.0 = (*meshes).add(planet);
 }
