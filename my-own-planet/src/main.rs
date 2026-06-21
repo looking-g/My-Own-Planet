@@ -10,6 +10,8 @@ use object::{displace_mesh_verts, DisplaceEdit, FormMode, get_surface_point};
 mod input;
 use input::input_plugin;
 
+mod export;
+
 
 fn main() {
     App::new()
@@ -71,7 +73,7 @@ fn setup(
     // light
     commands.spawn((
         PointLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0),

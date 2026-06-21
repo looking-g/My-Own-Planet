@@ -1,13 +1,16 @@
 //! Systems for user input
 
+
 use crate::{get_surface_point, DisplaceEdit, FormMode, MeshEdits, RandomRes, redo_planet_mesh, Planet, PlanetRes};
+
+use crate::export::*;
 
 use bevy::{
     prelude::*,
     picking::hover::Hovered,
     ui_widgets::{
         observe, slider_self_update, Slider, SliderRange, SliderThumb,
-        SliderValue, TrackClick, SliderPlugin,
+        SliderValue, TrackClick, SliderOrientation,
     },
 };
 
@@ -15,7 +18,7 @@ use bevy::{
 /// The plugin for all input related systems
 pub fn input_plugin(app: &mut App) {
     app
-        .add_plugins(SliderPlugin)
+        //.add_plugins(SliderPlugin)
         .insert_resource(NumberOfCraters(0))
         .insert_resource(NumberOfMountains(0))
         .insert_resource(OldMousePos::default())
@@ -251,6 +254,7 @@ struct Buttons{
     sub_crater: Entity,
     add_mountains: Entity,
     sub_mountains: Entity,
+    export: Entity,
 }
 
 impl Default for Buttons {
@@ -260,6 +264,7 @@ impl Default for Buttons {
             sub_crater: Entity::PLACEHOLDER,
             add_mountains: Entity::PLACEHOLDER, 
             sub_mountains: Entity::PLACEHOLDER, 
+            export: Entity::PLACEHOLDER, 
         }
     }
 }
@@ -294,8 +299,8 @@ fn make_text_ui(text: &str, font: Handle<Font>, node: Node, tracker: impl Compon
         node,
         Text::new(text),
         TextFont { 
-            font,
-            font_size: 20.0, 
+            font: FontSource::Handle(font),
+            font_size: FontSize::Px(20.0), 
             ..default() 
         },
         TextColor::from(Color::srgb(0.5, 0.5, 0.5)),
@@ -315,8 +320,8 @@ fn make_button_ui(text: &str, font: Handle<Font>, mut node: Node) -> impl Bundle
         children![(
             Text::new(text),
             TextFont { 
-                font,
-                font_size: 20.0, 
+                font: FontSource::Handle(font),
+                font_size: FontSize::Px(20.0), 
                 ..default() 
             },
         )]
@@ -328,6 +333,10 @@ fn react_to_buttons(
     mut interactions: Query<(Entity, &Interaction, &mut BackgroundColor), With<Button>>,
     buttons: Res<Buttons>,
     mut commands: Commands,
+
+    meshes: ResMut<Assets<Mesh>>,
+    planet: Single<&Mesh3d, With<Planet>>,
+
 
     mouse_buttons: Res<ButtonInput<MouseButton>>,
 ) {
@@ -355,6 +364,7 @@ fn react_to_buttons(
                     x if buttons.sub_crater == x => commands.trigger(SubCrater),
                     x if buttons.add_mountains == x => commands.trigger(AddMountain),
                     x if buttons.sub_mountains == x => commands.trigger(SubMountain),
+                    x if buttons.export == x => export_planet( meshes.get(planet.0.id()).unwrap().clone() ),
                     _ => continue,
                 }
             }
@@ -519,6 +529,21 @@ fn setup_ui(
     spawn_button_system(&mut buttons.add_crater, &mut buttons.sub_crater, percent(3), font.clone(), ui_aria, &mut commands);
     spawn_button_system(&mut buttons.add_mountains, &mut buttons.sub_mountains, percent(14), font.clone(), ui_aria, &mut commands);
 
+    buttons.export = commands.spawn((
+        make_button_ui("Export", font.clone(),
+            Node{
+                position_type: PositionType::Absolute,
+                left: percent(50),
+                top: percent(90),
+                width: px(120),
+                height: px(35),
+                border_radius: BorderRadius::all(px(10)),
+                ..default() 
+            }
+        ),
+        ChildOf(ui_aria),
+    )).id();
+
     // sliders
 
     let sliders = sliders.into_inner();
@@ -593,6 +618,7 @@ fn make_slider_ui(
         Hovered::default(),
         Slider {
             track_click: TrackClick::Snap,
+            orientation: SliderOrientation::Horizontal,
         },
         SliderValue(init_val),
         SliderRange::new(range.0, range.1),

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 
-bevy = { version = "0.18", features = ["experimental_bevy_ui_widgets"] }
+bevy = "0.19"
 rand = "0.10"
 rand_chacha = "0.10"
+rfd = "0.17"
