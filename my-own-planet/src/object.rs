@@ -11,7 +11,7 @@ use crate::RandomRes;
 
 // random point
 
-/// gets a random surface point on a unit circle located at (0, 0, 0)
+/// Gets a random surface point on a unit circle located at (0, 0, 0)
 pub fn get_surface_point(
     rand: &mut ResMut<RandomRes>,
 ) -> Vec3{
@@ -27,7 +27,7 @@ pub fn get_surface_point(
     Vec3::from_array(rand_dir).normalize()
 }
 
-/// converts a 0.0-MAX u32 value to a -1.0-1.0 f32 value
+/// Converts a 0.0-MAX u32 value to a -1.0-1.0 f32 value
 fn u32_frac(x: u32) -> f32{
     let fx = x as f32;
     let half_max = u32::MAX as f32 / 2.0;
@@ -45,7 +45,7 @@ pub enum FormMode{
     Sub,
 }
 
-/// used for storing the vertex displacement edit
+/// Used for storing the vertex displacement edit
 pub enum DisplaceEdit{
     Circle{
         pos: Vec3,
@@ -60,7 +60,8 @@ pub enum DisplaceEdit{
 }
 
 impl DisplaceEdit{
-    /// vertex's distence from the center should be `current dist + output` 
+    /// Gets the distence the current vertex (point) should be moved by from the center of the planet
+    /// Vertex's distence from the center should be `current dist + output` 
     pub fn get_displace(&self, point: Vec3, planet_size: f32) -> f32 {
         let mode: FormMode;
         let new_depth = match self {
@@ -102,6 +103,7 @@ impl DisplaceEdit{
 
 // low level mesh editing
 
+/// Creats a mesh with verices displaced according to edits
 pub fn displace_mesh_verts(
     mesh: &mut Mesh,
     edits: &Vec<DisplaceEdit>,
@@ -130,7 +132,7 @@ pub fn displace_mesh_verts(
     vert_norm_update(mesh);
 }
 
-/// updates the vertex normals of a mesh
+/// Updates the vertex normals of a mesh
 fn vert_norm_update(mesh: &mut Mesh) {
 
     // recalculating vertex normals 
@@ -196,7 +198,7 @@ fn vert_norm_update(mesh: &mut Mesh) {
 
 }
 
-/// keeps track of vales that are to be averaged
+/// Keeps track of vales that are to be averaged
 #[derive(Clone)]
 struct AverageVec3{
     sum: Vec3,
@@ -204,7 +206,7 @@ struct AverageVec3{
 }
 
 impl AverageVec3{
-    /// makes a new counter
+    /// Makes a new counter
     fn new() -> Self{
         Self{
             sum: Vec3::ZERO,
@@ -212,13 +214,13 @@ impl AverageVec3{
         }
     }
 
-    /// adds a value to the count
+    /// Adds a value to the count
     fn add(&mut self, val: Vec3){
         self.sum += val;
         self.count += 1_u32;
     }
 
-    /// calculates the average
+    /// Calculates the average
     fn solve(&self) -> Option<Vec3>{
         if self.count == 0{
             None

@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+/// Starts the process of downloading the planet as `.obj`
 pub fn export_planet<'a>(
     mesh: Mesh,
 ) {
@@ -21,10 +22,12 @@ pub fn export_planet<'a>(
 }
 
 
+/// Modual for functions that only run out of the web
 #[cfg(not(target_arch = "wasm32"))]
 mod non_wasm_export {
     use rfd::FileDialog;
 
+    /// Exports the `.obj` file
     pub fn export_by_file_dialog(obj_file: String) {
         let path = FileDialog::new()
             .set_directory("~/")
@@ -37,6 +40,8 @@ mod non_wasm_export {
     }
 }
 
+
+/// Modual for functions that only run out of the web
 #[cfg(target_arch = "wasm32")]
 mod wasm_export { 
     use wasm_bindgen::{
@@ -47,9 +52,11 @@ mod wasm_export {
 
     #[wasm_bindgen]
     extern "C" {
+        /// Alert on the web
         pub fn alert(s: &str);
     }
 
+    /// Exports the `.obj` file
     #[wasm_bindgen]
     // the idia is that
     // obj -> blob -> url + doc -> downloded file on the computer
@@ -77,6 +84,8 @@ mod wasm_export {
 
 
 use bevy::mesh::{VertexAttributeValues, Indices}; 
+/// Converts a mesh to a `.obj` file format
+/// Returns `None` if the mesh dosn't have all the required properties
 fn mesh_to_obj(mesh: Mesh) -> Option<String> {
     let mut obj = String::new();
 

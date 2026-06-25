@@ -67,6 +67,7 @@ fn crater_generater(
     commands.trigger(UpdateVisual)
 }
 
+/// Removes the last crator in MeshEdits
 fn crater_remover(
     _remover: On<SubCrater>,
     mut count: ResMut<NumberOfCraters>,
@@ -120,6 +121,7 @@ fn mountain_generater(
     commands.trigger(UpdateVisual)
 }
 
+/// Removes the last mountain in MeshEdits
 fn mountain_remover(
     _remover: On<SubMountain>,
     mut count: ResMut<NumberOfMountains>,
@@ -142,6 +144,7 @@ fn mountain_remover(
 #[derive(Event)]
 struct UpdateVisual;
 
+/// Recreates the planet mesh with current values
 fn update_planet_visual(
     _activate: On<UpdateVisual>,
     mut planet: Single<(&mut MeshEdits, &mut Mesh3d), With<Planet>>, 
@@ -158,6 +161,7 @@ fn update_planet_visual(
 }
 
 use bevy::pbr::MeshMaterial3d;
+/// Updates the planet mesh color
 fn update_planet_color(
     mut planet_texture: Single<&mut MeshMaterial3d<StandardMaterial>>, 
     sliders_query: Query<&SliderValue>,
@@ -178,7 +182,7 @@ fn update_planet_color(
     }
 }
 
-
+/// Changes the planet mesh size
 fn update_planet_size(
     sliders_query: Query<&SliderValue>,
     mut planet_vals: ResMut<PlanetRes>,
@@ -192,6 +196,7 @@ fn update_planet_size(
     }
 }
 
+/// Changes the planet icodivision count
 fn update_ico_divs(
     sliders_query: Query<&SliderValue>,
     mut planet_vals: ResMut<PlanetRes>,
@@ -291,6 +296,7 @@ impl Default for Sliders {
 #[derive(Component)]
 struct NoTrack;
 
+/// Creates a text bundle 
 // based of the code from
 // https://bevy.org/examples/ui-user-interface/anchor-layout/
 fn make_text_ui(text: &str, font: Handle<Font>, node: Node, tracker: impl Component) -> impl Bundle{
@@ -307,7 +313,7 @@ fn make_text_ui(text: &str, font: Handle<Font>, node: Node, tracker: impl Compon
     )
 }
 
-
+/// Creates a button bundle
 fn make_button_ui(text: &str, font: Handle<Font>, mut node: Node) -> impl Bundle{
 
     node.justify_content = JustifyContent::Center;
@@ -328,7 +334,7 @@ fn make_button_ui(text: &str, font: Handle<Font>, mut node: Node) -> impl Bundle
     )
 }
 
-/// describes what should happen when a button is pressed
+/// Describes what should happen when a button is pressed
 fn react_to_buttons(
     mut interactions: Query<(Entity, &Interaction, &mut BackgroundColor), With<Button>>,
     buttons: Res<Buttons>,
@@ -373,7 +379,7 @@ fn react_to_buttons(
     }
 }
 
-
+/// Updates text values
 fn update_text(
     mut texts: Query<(&mut Text, Has<NumCraterDisplay>, Has<NumMountainDisplay>)>,
     num_crater: Res<NumberOfCraters>,
@@ -385,6 +391,7 @@ fn update_text(
     }
 }
 
+/// Spawns a working +/- button system
 fn spawn_button_system(
     add_tracker: &mut Entity, 
     sub_tracker: &mut Entity, 
@@ -426,7 +433,7 @@ fn spawn_button_system(
 
 }
 
-
+/// Sets up the app's UI
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -594,6 +601,7 @@ fn setup_ui(
 #[derive(Component)]
 struct ThumbParent;
 
+/// Spawns a slider UI element
 // based of the code from
 // https://bevy.org/examples/ui-user-interface/vertical-slider/
 fn make_slider_ui(
@@ -666,6 +674,7 @@ fn make_slider_ui(
 
 const SLIDER_THUMB_SIZE: u32 = 12;
 
+/// Updates the sliders so they visualy sync with their stored value
 fn update_slider_visuals(
     sliders: Query<(&Children, &SliderValue, &SliderRange), Changed<SliderValue>>,
     mut slider_thumbs: Query<&mut Node, With<ThumbParent>>,

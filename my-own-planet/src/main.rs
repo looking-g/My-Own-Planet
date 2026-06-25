@@ -54,7 +54,7 @@ impl Default for PlanetRes {
     }
 }
 
-
+/// Sets up the inital components of the app
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -93,7 +93,7 @@ fn setup(
 
 }
 
-
+/// Recreates the planet's mesh
 fn redo_planet_mesh(
     planet_mesh: &mut Mesh3d, 
     edits: &MeshEdits,
