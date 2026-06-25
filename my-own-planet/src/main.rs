@@ -2,7 +2,8 @@ use bevy::{
     prelude::*,
     camera::ClearColor,
 };
-use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
+use rand_chacha::ChaCha8Rng;
+use rand;
 
 mod object;
 use object::{displace_mesh_verts, DisplaceEdit, FormMode, get_surface_point};
@@ -60,7 +61,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     planet_info: Res<PlanetRes>,
 ) {
-    let seeded_rng = ChaCha8Rng::seed_from_u64(94757448641217);
+    let seeded_rng = rand::make_rng();
     commands.insert_resource(RandomRes(seeded_rng));
 
     // camera
