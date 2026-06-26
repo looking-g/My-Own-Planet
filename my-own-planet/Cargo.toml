@@ -1,10 +1,10 @@
 [package]
 name = "my-own-planet"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/looking-g/My-Own-Planet"
-description = "Generate planets and export them as OBJ files."
+description = "Create your very own planet with a variety of options."
 
 [dependencies]
 
