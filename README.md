@@ -22,7 +22,7 @@ This app allows you to create a variety of custom planets using options like cra
 ## Export
 
 Planets can be exported as `.obj` files for use in other applications.
-![Planet in Bambu Studio](planet_in_bambu_studio.png)
+![Planet in Bambu Studio](images/planet_in_bambu_studio.png)
 _planet exported into Bambu Studio_
 
 ## Building
