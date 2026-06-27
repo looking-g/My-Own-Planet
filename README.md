@@ -37,3 +37,7 @@ cargo run --release
 ## Download
 
 Alternatively, the project can be downloaded or ran on your browser at [Itch.io](https://landening.itch.io/my-own-planet)
+
+## AI Assistance
+
+This project was developed by me. The only AI tool that I used was ChatGPT for tasks such as explaining concepts, debugging, and reviewing documentation. All implementations and testing were performed by me.
