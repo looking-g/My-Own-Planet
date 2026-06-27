@@ -34,8 +34,6 @@ cd my-own-planet
 cargo run --release
 ```
 
-<!-- itch.io download isn't available yet
 ## Download
 
-Alternatively, the project can be downloaded at [Itch.io](NO LINK YET)
--->
+Alternatively, the project can be downloaded or ran on your browser at [Itch.io](https://landening.itch.io/my-own-planet)
